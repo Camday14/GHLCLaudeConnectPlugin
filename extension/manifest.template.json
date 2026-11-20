@@ -1,0 +1,72 @@
+{
+  "manifest_version": "0.3",
+  "name": "gohighlevel",
+  "display_name": "GoHighLevel",
+  "description": "Connect Claude to your GoHighLevel sub-account: contacts, lead sorting, SMS/email, pipelines, CSV imports, and sales reports.",
+  "long_description": "Gives Claude full access to one GoHighLevel sub-account through the official API v2 using a Private Integration Token.\n\n**What Claude can do**\n- Search, create, update and tag contacts; notes, tasks, workflow enrollment\n- Score and sort leads, round-robin assignment, find duplicates\n- Send single or bulk SMS and email with merge fields (DND always respected)\n- Manage pipelines: create deals, move stages in bulk, mark won/lost\n- Import CSVs with automatic column mapping and dedupe; export contacts\n- Pipeline, call, activity and revenue reports; call transcripts and recordings\n\n**Safety:** anything that sends messages, changes many records, or deletes first shows a preview and only runs after you approve it.\n\n**Setup:** in GoHighLevel open your sub-account → Settings → Private Integrations → Create, grant the scopes listed in the README, then paste the token and your Location ID here.",
+  "author": { "name": "Camday14", "url": "https://github.com/Camday14/GHLCLaudeConnectPlugin" },
+  "repository": { "type": "git", "url": "https://github.com/Camday14/GHLCLaudeConnectPlugin" },
+  "homepage": "https://github.com/Camday14/GHLCLaudeConnectPlugin",
+  "documentation": "https://github.com/Camday14/GHLCLaudeConnectPlugin#readme",
+  "support": "https://github.com/Camday14/GHLCLaudeConnectPlugin/issues",
+  "icon": "icon.png",
+  "license": "MIT",
+  "keywords": ["gohighlevel", "ghl", "highlevel", "crm", "sales", "leads", "sms", "pipeline"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.mjs"],
+      "env": {
+        "GHL_API_KEY": "${user_config.api_key}",
+        "GHL_LOCATION_ID": "${user_config.location_id}",
+        "GHL_READ_ONLY": "${user_config.read_only}",
+        "GHL_BULK_CONFIRM_THRESHOLD": "${user_config.confirm_threshold}",
+        "GHL_DEFAULT_COUNTRY_CODE": "${user_config.country_code}"
+      }
+    }
+  },
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "Private Integration Token",
+      "description": "From GoHighLevel: your sub-account → Settings → Private Integrations → Create new integration. Starts with \"pit-\". Stored securely in your system keychain.",
+      "sensitive": true,
+      "required": true
+    },
+    "location_id": {
+      "type": "string",
+      "title": "Location ID",
+      "description": "Your sub-account's Location ID: Settings → Business Profile, or the ID in your GHL URL after /location/.",
+      "required": true
+    },
+    "read_only": {
+      "type": "boolean",
+      "title": "Read-only mode",
+      "description": "Turn on to let Claude look and report only — no sending, editing, or deleting.",
+      "default": false,
+      "required": false
+    },
+    "confirm_threshold": {
+      "type": "number",
+      "title": "Ask for approval when an action affects at least this many records",
+      "description": "1 = always show a preview and ask before sending or changing anything (recommended). Higher numbers let small actions run immediately.",
+      "default": 1,
+      "min": 1,
+      "max": 1000,
+      "required": false
+    },
+    "country_code": {
+      "type": "string",
+      "title": "Default phone country code",
+      "description": "Added to phone numbers without a + sign (used by imports and duplicate checks). 1 = US/Canada.",
+      "default": "1",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=20.0.0" }
+  }
+}

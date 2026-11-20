@@ -56,7 +56,7 @@ Open **Settings → Developer → Edit Config** (`claude_desktop_config.json`) a
   "mcpServers": {
     "gohighlevel": {
       "command": "node",
-      "args": ["/ABSOLUTE/PATH/TO/GHLCLaudeConnectPlugin/dist/index.js"],
+      "args": ["/ABSOLUTE/PATH/TO/GHLCLaudeConnectPlugin/dist/local/index.js"],
       "env": {
         "GHL_API_KEY": "pit-xxxxxxxx",
         "GHL_LOCATION_ID": "your-location-id"
@@ -65,11 +65,11 @@ Open **Settings → Developer → Edit Config** (`claude_desktop_config.json`) a
   }
 }
 ```
-On Windows, use a path like `C:\\Users\\you\\GHLCLaudeConnectPlugin\\dist\\index.js`. Restart Claude Desktop afterwards; "gohighlevel" then appears in the tools/connectors menu.
+On Windows, use a path like `C:\\Users\\you\\GHLCLaudeConnectPlugin\\dist\\local\\index.js`. Restart Claude Desktop afterwards; "gohighlevel" then appears in the tools/connectors menu.
 
 ### Claude Code
 ```bash
-claude mcp add gohighlevel --scope user -e GHL_API_KEY=pit-xxxxxxxx -e GHL_LOCATION_ID=your-location-id -- node /ABSOLUTE/PATH/TO/GHLCLaudeConnectPlugin/dist/index.js
+claude mcp add gohighlevel --scope user -e GHL_API_KEY=pit-xxxxxxxx -e GHL_LOCATION_ID=your-location-id -- node /ABSOLUTE/PATH/TO/GHLCLaudeConnectPlugin/dist/local/index.js
 ```
 Then run `/mcp` inside Claude Code to check that it's connected.
 

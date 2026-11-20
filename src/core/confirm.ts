@@ -77,7 +77,8 @@ export async function runConfirmable<P>(ctx: ConfirmContext, spec: ConfirmableSp
   if (spec.count === 0) {
     return { status: "NOTHING_TO_DO", message: "No records matched, so nothing was changed.", ...spec.preview };
   }
-  const needsConfirm = spec.count >= Math.max(1, ctx.threshold);
+  const threshold = Number.isFinite(ctx.threshold) && ctx.threshold >= 1 ? ctx.threshold : 1;
+  const needsConfirm = spec.count >= threshold;
   if (needsConfirm && !confirmToken) {
     const token = ctx.store.issue(spec.tool, spec.plan);
     return {

@@ -2,7 +2,7 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { classifyCall, summarizeCalls, summarizePipeline } from "../src/tools/reports.js";
+import { classifyCall, summarizeCalls, summarizePipeline } from "../src/core/tools/reports.js";
 import { connect, contacts, fakeGhl } from "./helpers.js";
 
 const pipelines = [

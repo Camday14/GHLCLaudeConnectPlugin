@@ -8,6 +8,8 @@ export interface Config {
   readOnly: boolean;
   confirmThreshold: number;
   defaultCountryCode: string;
+  /** Whether tools may read/write files on the machine running the server (true for the local/desktop server). */
+  fileAccess: boolean;
 }
 
 export interface Ctx {
@@ -18,7 +20,7 @@ export interface Ctx {
 }
 
 export function createCtx(client: GhlClient, config: Partial<Config> = {}): Ctx {
-  const cfg: Config = { readOnly: false, confirmThreshold: 1, defaultCountryCode: "1", ...config };
+  const cfg: Config = { readOnly: false, confirmThreshold: 1, defaultCountryCode: "1", fileAccess: true, ...config };
   return {
     client,
     data: new GhlData(client),

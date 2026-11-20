@@ -1,8 +1,8 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { GhlClient } from "../src/client.js";
-import type { Config } from "../src/context.js";
-import { buildServer } from "../src/server.js";
+import { GhlClient } from "../src/core/client.js";
+import type { Config } from "../src/core/context.js";
+import { buildServer } from "../src/core/server.js";
 
 export interface Call {
   method: string;

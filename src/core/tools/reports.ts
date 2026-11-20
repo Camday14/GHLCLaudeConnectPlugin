@@ -198,7 +198,8 @@ export const reportTools: ToolDef<any>[] = [
       message_id: z.string().describe("Call message ID (from call_report with include_call_list, or get_conversation_messages)"),
       save_recording_to: z.string().optional().describe("Absolute path to save the recording, e.g. /Users/me/Desktop/call.wav"),
     },
-    handler: async (a, { client, data }) => {
+    handler: async (a, { client, data, config }) => {
+      if (a.save_recording_to && !config.fileAccess) throw new Error("Saving recordings to a file is only available in the desktop extension.");
       const out: Record<string, unknown> = { message_id: a.message_id };
       try {
         const t = await client.get(`/conversations/locations/${data.locationId}/messages/${a.message_id}/transcription`);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { GhlClient, GhlError } from "../src/client.js";
-import { ConfirmStore } from "../src/confirm.js";
-import { normalizePhone, renderTemplate, stableStringify } from "../src/util.js";
+import { GhlClient, GhlError } from "../src/core/client.js";
+import { ConfirmStore } from "../src/core/confirm.js";
+import { normalizePhone, renderTemplate, stableStringify } from "../src/core/util.js";
 import { fakeGhl } from "./helpers.js";
 
 describe("GhlClient", () => {

@@ -135,10 +135,11 @@ export const importTools: ToolDef<any>[] = [
     name: "import_contacts_csv",
     title: "Import contacts from CSV",
     description:
-      "Import contacts from a CSV file on this computer. Columns are auto-mapped to GHL fields (first/last name, email, phone, company, address, source, tags, and custom fields by name); override with `mapping`. Rows are validated and normalized, deduplicated, and upserted (existing contacts matched by email/phone are updated, not duplicated). Can tag every imported contact and create a deal for each in a pipeline stage. Failed rows are written to <file>.failures.csv.",
+      "Import contacts from a CSV (a file path on the computer running the desktop extension, or the CSV text itself via csv_text). Columns are auto-mapped to GHL fields (first/last name, email, phone, company, address, source, tags, and custom fields by name); override with `mapping`. Rows are validated and normalized, deduplicated, and upserted (existing contacts matched by email/phone are updated, not duplicated). Can tag every imported contact and create a deal for each in a pipeline stage. Failed rows are written to <file>.failures.csv.",
     write: true,
     schema: {
-      file_path: z.string().describe("Absolute path to the CSV file"),
+      file_path: z.string().optional().describe("Absolute path to the CSV file (desktop/local only)"),
+      csv_text: z.string().optional().describe("The CSV content itself, including the header row (use this when connected via the hosted connector)"),
       mapping: z
         .record(z.string())
         .optional()
@@ -154,7 +155,7 @@ export const importTools: ToolDef<any>[] = [
       ...confirmTokenArg,
     },
     handler: async (a, ctx) => {
-      const buf = await readFile(a.file_path);
+      const buf = await loadCsv(a, ctx);
       const records: Record<string, string>[] = parse(buf, { columns: true, skip_empty_lines: true, trim: true, bom: true, relax_column_count: true });
       if (records.length > a.max_rows) throw new Error(`File has ${records.length} rows, above max_rows=${a.max_rows}. Raise max_rows or split the file.`);
       const headers = records.length ? Object.keys(records[0]) : [];
@@ -177,7 +178,7 @@ export const importTools: ToolDef<any>[] = [
         pipeline_id: stage?.pipelineId,
         skip_if_open_opportunity: a.skip_if_open_opportunity,
       };
-      const failuresPath = a.file_path.replace(/\.csv$/i, "") + ".failures.csv";
+      const failuresPath = a.file_path && ctx.config.fileAccess ? a.file_path.replace(/\.csv$/i, "") + ".failures.csv" : undefined;
       return runConfirmable(
         ctx.confirm,
         {
@@ -232,14 +233,16 @@ export const importTools: ToolDef<any>[] = [
                 failures.push({ row: String(r.row), reason: (e as Error).message, ...flatten(r.contact) });
               }
             }
-            if (failures.length) await writeFile(failuresPath, stringify(failures, { header: true, columns: unionKeys(failures) }));
+            const failuresCsv = failures.length ? stringify(failures, { header: true, columns: unionKeys(failures) }) : undefined;
+            if (failuresCsv && failuresPath) await writeFile(failuresPath, failuresCsv);
             ctx.data.invalidate("tags");
             return {
               contacts_created: created,
               contacts_updated: updated,
               opportunities_created: oppsCreated,
               failed_rows: failures.length,
-              failures_file: failures.length ? failuresPath : undefined,
+              failures_file: failuresCsv && failuresPath ? failuresPath : undefined,
+              failures_csv: failuresCsv && !failuresPath ? failuresCsv.slice(0, 200_000) : undefined,
               sample_failures: failures.slice(0, 10),
             };
           },
@@ -252,9 +255,9 @@ export const importTools: ToolDef<any>[] = [
   defineTool({
     name: "export_contacts_csv",
     title: "Export contacts to CSV",
-    description: "Export contacts matching a filter to a CSV file on this computer.",
+    description: "Export contacts matching a filter as CSV: written to a file (desktop/local only) or returned as CSV text.",
     schema: {
-      file_path: z.string().describe("Absolute output path, e.g. /Users/me/Desktop/leads.csv"),
+      file_path: z.string().optional().describe("Absolute output path, e.g. /Users/me/Desktop/leads.csv (desktop/local only). Omit to get the CSV text back."),
       filter: contactFilterSchema.optional(),
       include_custom_fields: z.boolean().default(true),
       max_contacts: z.number().int().min(1).max(50000).default(5000),
@@ -289,11 +292,24 @@ export const importTools: ToolDef<any>[] = [
         }
         return row;
       });
-      await writeFile(a.file_path, stringify(rows, { header: true, columns: unionKeys(rows) }));
-      return { file: a.file_path, contacts_exported: rows.length, truncated };
+      const csv = stringify(rows, { header: true, columns: unionKeys(rows) });
+      if (a.file_path) {
+        if (!ctx.config.fileAccess) throw new Error("file_path is only available in the desktop extension. Omit it to get the CSV text back.");
+        await writeFile(a.file_path, csv);
+        return { file: a.file_path, contacts_exported: rows.length, truncated };
+      }
+      const MAX = 1_000_000;
+      return { contacts_exported: rows.length, truncated, csv_truncated: csv.length > MAX || undefined, csv: csv.slice(0, MAX) };
     },
   }),
 ];
+
+async function loadCsv(a: { file_path?: string; csv_text?: string }, ctx: Ctx): Promise<Buffer> {
+  if (a.csv_text) return Buffer.from(a.csv_text, "utf8");
+  if (!a.file_path) throw new Error("Provide file_path or csv_text.");
+  if (!ctx.config.fileAccess) throw new Error("This server can't read files from your computer. Pass the CSV content as csv_text instead.");
+  return readFile(a.file_path);
+}
 
 function flatten(c: Record<string, any>): Record<string, string> {
   const out: Record<string, string> = {};

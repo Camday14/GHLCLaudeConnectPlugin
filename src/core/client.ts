@@ -20,7 +20,10 @@ export interface RequestOptions {
 }
 
 export interface GhlClientOptions {
-  apiKey: string;
+  /** Static token (Private Integration Token). Use this or getAccessToken. */
+  apiKey?: string;
+  /** Dynamic token source (e.g. OAuth with refresh). Called before every request. */
+  getAccessToken?: () => Promise<string>;
   locationId: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
@@ -55,7 +58,7 @@ const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 export class GhlClient {
   readonly locationId: string;
-  private apiKey: string;
+  private getToken: () => Promise<string>;
   private baseUrl: string;
   private fetchImpl: typeof fetch;
   private minIntervalMs: number;
@@ -65,9 +68,10 @@ export class GhlClient {
   private lastStart = 0;
 
   constructor(opts: GhlClientOptions) {
-    if (!opts.apiKey) throw new Error("GHL_API_KEY is not set. Create a Private Integration Token in GHL (Settings → Private Integrations).");
+    if (!opts.apiKey && !opts.getAccessToken) throw new Error("GHL_API_KEY is not set. Create a Private Integration Token in GHL (Settings → Private Integrations).");
     if (!opts.locationId) throw new Error("GHL_LOCATION_ID is not set. Find it in GHL under Settings → Business Profile (Location ID).");
-    this.apiKey = opts.apiKey;
+    const key = opts.apiKey;
+    this.getToken = opts.getAccessToken ?? (async () => key!);
     this.locationId = opts.locationId;
     this.baseUrl = (opts.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.fetchImpl = opts.fetchImpl ?? fetch;
@@ -102,7 +106,7 @@ export class GhlClient {
   async request<T = any>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {
     const url = this.buildUrl(path, opts.query);
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.apiKey}`,
+      Authorization: `Bearer ${await this.getToken()}`,
       Version: opts.version ?? API_VERSION,
       Accept: opts.raw ? "*/*" : "application/json",
     };
