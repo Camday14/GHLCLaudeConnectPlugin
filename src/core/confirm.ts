@@ -19,14 +19,35 @@ interface Entry {
   expires: number;
 }
 
-export class ConfirmStore {
+/** Storage for confirm tokens. In-memory for the desktop server, database-backed for the hosted server. */
+export interface ConfirmBackend {
+  issue(tool: string, plan: unknown): Promise<string> | string;
+  redeem(tool: string, plan: unknown, token: string): Promise<void> | void;
+}
+
+export function planHash(plan: unknown): string {
+  return sha256(stableStringify(plan));
+}
+
+export function newConfirmToken(): string {
+  return `cfm_${randomBytes(9).toString("base64url")}`;
+}
+
+export const CONFIRM_ERRORS = {
+  unknown: "This confirm_token is unknown or expired (tokens last 10 minutes and work once). Run the tool again without confirm_token to get a fresh preview.",
+  wrongTool: (owner: string, tool: string) => `This confirm_token belongs to "${owner}", not "${tool}".`,
+  changed:
+    "The planned operation changed since the preview (different arguments, or the matching records changed in GHL). Nothing was executed. Run the tool again without confirm_token to see the new preview.",
+};
+
+export class ConfirmStore implements ConfirmBackend {
   private entries = new Map<string, Entry>();
   constructor(private now: () => number = Date.now) {}
 
   issue(tool: string, plan: unknown): string {
     this.gc();
-    const token = `cfm_${randomBytes(9).toString("base64url")}`;
-    this.entries.set(token, { tool, hash: sha256(stableStringify(plan)), expires: this.now() + CONFIRM_TTL_MS });
+    const token = newConfirmToken();
+    this.entries.set(token, { tool, hash: planHash(plan), expires: this.now() + CONFIRM_TTL_MS });
     return token;
   }
 
@@ -34,11 +55,11 @@ export class ConfirmStore {
   redeem(tool: string, plan: unknown, token: string): void {
     this.gc();
     const entry = this.entries.get(token);
-    if (!entry) throw new ConfirmError("This confirm_token is unknown or expired (tokens last 10 minutes and work once). Run the tool again without confirm_token to get a fresh preview.");
-    if (entry.tool !== tool) throw new ConfirmError(`This confirm_token belongs to "${entry.tool}", not "${tool}".`);
-    if (entry.hash !== sha256(stableStringify(plan))) {
+    if (!entry) throw new ConfirmError(CONFIRM_ERRORS.unknown);
+    if (entry.tool !== tool) throw new ConfirmError(CONFIRM_ERRORS.wrongTool(entry.tool, tool));
+    if (entry.hash !== planHash(plan)) {
       this.entries.delete(token);
-      throw new ConfirmError("The planned operation changed since the preview (different arguments, or the matching records changed in GHL). Nothing was executed. Run the tool again without confirm_token to see the new preview.");
+      throw new ConfirmError(CONFIRM_ERRORS.changed);
     }
     this.entries.delete(token);
   }
@@ -68,7 +89,7 @@ export interface ConfirmableSpec<P> {
 }
 
 export interface ConfirmContext {
-  store: ConfirmStore;
+  store: ConfirmBackend;
   /** Confirmation is required when count >= threshold. 0 or 1 = always. */
   threshold: number;
 }
@@ -80,7 +101,7 @@ export async function runConfirmable<P>(ctx: ConfirmContext, spec: ConfirmableSp
   const threshold = Number.isFinite(ctx.threshold) && ctx.threshold >= 1 ? ctx.threshold : 1;
   const needsConfirm = spec.count >= threshold;
   if (needsConfirm && !confirmToken) {
-    const token = ctx.store.issue(spec.tool, spec.plan);
+    const token = await ctx.store.issue(spec.tool, spec.plan);
     return {
       status: "PREVIEW_ONLY — NOTHING HAS BEEN EXECUTED",
       affected_count: spec.count,
@@ -89,7 +110,7 @@ export async function runConfirmable<P>(ctx: ConfirmContext, spec: ConfirmableSp
       next_step: `Show this preview to the user and ask for explicit approval. Only if they approve, call ${spec.tool} again with the SAME arguments plus confirm_token="${token}". The token expires in 10 minutes.`,
     };
   }
-  if (needsConfirm && confirmToken) ctx.store.redeem(spec.tool, spec.plan, confirmToken);
+  if (needsConfirm && confirmToken) await ctx.store.redeem(spec.tool, spec.plan, confirmToken);
   const result = await spec.execute(spec.plan);
   return { status: "EXECUTED", affected_count: spec.count, result };
 }

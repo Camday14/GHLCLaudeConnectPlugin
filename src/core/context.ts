@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { GhlClient, GhlError } from "./client.js";
-import { ConfirmContext, ConfirmError, ConfirmStore } from "./confirm.js";
+import { ConfirmBackend, ConfirmContext, ConfirmError, ConfirmStore } from "./confirm.js";
 import { GhlData } from "./ghl.js";
 
 export interface Config {
@@ -17,14 +17,16 @@ export interface Ctx {
   data: GhlData;
   confirm: ConfirmContext;
   config: Config;
+  /** Extra services available in hosted mode (e.g. the automation engine). */
+  services?: Record<string, unknown>;
 }
 
-export function createCtx(client: GhlClient, config: Partial<Config> = {}): Ctx {
+export function createCtx(client: GhlClient, config: Partial<Config> = {}, confirmStore?: ConfirmBackend): Ctx {
   const cfg: Config = { readOnly: false, confirmThreshold: 1, defaultCountryCode: "1", fileAccess: true, ...config };
   return {
     client,
     data: new GhlData(client),
-    confirm: { store: new ConfirmStore(), threshold: cfg.confirmThreshold },
+    confirm: { store: confirmStore ?? new ConfirmStore(), threshold: cfg.confirmThreshold },
     config: cfg,
   };
 }

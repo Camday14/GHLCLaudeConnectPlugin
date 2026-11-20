@@ -1,109 +1,132 @@
-# GoHighLevel MCP connector for Claude
+# GoHighLevel for Claude
 
-A local MCP server that lets Claude (Claude Desktop / Cowork and Claude Code) work inside one GoHighLevel sub-account through the GHL API v2. With it, Claude can:
+Connect Claude directly to your GoHighLevel sub-account. Claude can then manage contacts and leads, send texts and emails, run your pipelines, import CSVs, report on calls, deals and revenue, and **build automations that run for you**.
 
-- **Manage data**: search, create, update, upsert and delete contacts; add and remove tags; add notes and tasks; enroll contacts in workflows
-- **Sort leads**: score and bucket leads (hot/warm/cold) with your own rules, assign them round-robin to reps, and find duplicates
-- **Send emails and texts**: one-off or bulk, with merge fields; contacts with DND turned on are skipped automatically
-- **Manage pipelines**: list pipelines and stages, search deals, create and update deals, move deals between stages one at a time or in bulk, and mark them won or lost
-- **Handle imports**: import a CSV with automatic column mapping, validation, dedupe, upsert, tagging and optional deal creation, or export contacts to CSV
-- **Check sales data**: pipeline report (stage values, win rate, owner breakdown, stale deals), call report (answered/missed/voicemail, talk time, per rep), call transcripts and recordings, an activity summary, and revenue from payments
-- **Raw API access**: `ghl_api_request` reaches any other GHL v2 endpoint
+There are two ways to install it:
 
-### Safety: preview, then confirm
-Every tool that **sends messages, changes records in bulk, or deletes** runs in two steps:
+| | **Desktop Extension** (one click) | **Hosted connector** (Connectors tab + GHL login) |
+|---|---|---|
+| Works in | Claude Desktop / Cowork | claude.ai web, mobile, Desktop, Claude Code |
+| Setup | Double-click `GoHighLevel.mcpb`, then paste your token in the form | Deploy once to Railway, then in Claude go to **Settings → Connectors → Add** and log in |
+| Login | Private Integration token | **Log in with GoHighLevel** (OAuth) or a token |
+| Automations | — | ✅ runs 24/7 on your server |
+| Cost | Free | Railway, about $5–10/month |
 
-1. Claude calls the tool and gets back a **preview** that shows what would happen, how many records it affects, rendered message samples, and which contacts were skipped and why. It also gets a `confirm_token`. **Nothing has been sent or changed at this point.**
-2. Claude shows you the preview. Only after you approve does it call the tool again with the token. The server rebuilds the plan, and if anything has changed since the preview (different arguments, or different matching records), it refuses to run.
-
-Tokens expire after 10 minutes and work only once. Set `GHL_READ_ONLY=true` for a reporting-only setup in which no write tools exist.
+Every tool that **sends messages, changes records in bulk, or deletes** shows Claude a **preview first** and only runs after you approve it.
 
 ---
 
-## 1. Create a Private Integration Token in GHL
-1. In GoHighLevel, switch into the **sub-account**.
-2. Go to **Settings → Private Integrations → Create new integration**.
-3. Grant these scopes (or fewer, if you want fewer capabilities):
-   - `contacts.readonly`, `contacts.write`
-   - `conversations.readonly`, `conversations.write`
-   - `conversations/message.readonly`, `conversations/message.write`
-   - `opportunities.readonly`, `opportunities.write`
-   - `users.readonly`, `locations.readonly`
-   - `locations/customFields.readonly`, `locations/tags.readonly`, `locations/tags.write`
-   - `workflows.readonly`
-   - `calendars.readonly`, `calendars/events.readonly`
-   - `payments/transactions.readonly` (for `revenue_summary`)
-4. Copy the token (it starts with `pit-`).
-5. Copy your **Location ID** from **Settings → Business Profile**, or from the URL: `.../location/<LOCATION_ID>/...`.
+## Option A: one-click Desktop Extension
 
-Keep the token secret. Anyone who has it can act on the sub-account.
+1. Download **`GoHighLevel.mcpb`** from the [latest release](https://github.com/Camday14/GHLCLaudeConnectPlugin/releases/latest).
+2. Double-click it. Claude Desktop opens an install screen.
+3. Fill in the form:
+   - **Private Integration Token**: in GoHighLevel, go into your sub-account → **Settings → Private Integrations → Create new integration**. Grant the [scopes below](#scopes), then copy the token (starts with `pit-`). Claude Desktop stores it in your system keychain.
+   - **Location ID**: under **Settings → Business Profile**, or in your GHL URL after `/location/`.
+   - Optional: read-only mode, the approval threshold, and the phone country code.
+4. Click **Install**. You'll find **GoHighLevel** under **Settings → Extensions**, where you can switch it on and off.
 
-## 2. Build
-Requires Node.js 20 or later.
-```bash
-git clone https://github.com/Camday14/GHLCLaudeConnectPlugin.git
-cd GHLCLaudeConnectPlugin
-npm install
-npm run build
-```
+To build the `.mcpb` yourself, run `npm ci && npm run build:extension`. The file is written to `release/GoHighLevel.mcpb`.
 
-## 3. Connect to Claude
+## Option B: hosted connector (Connectors tab, "Log in with GoHighLevel", automations)
 
-### Claude Desktop / Cowork
-Open **Settings → Developer → Edit Config** (`claude_desktop_config.json`) and add:
-```json
-{
-  "mcpServers": {
-    "gohighlevel": {
-      "command": "node",
-      "args": ["/ABSOLUTE/PATH/TO/GHLCLaudeConnectPlugin/dist/local/index.js"],
-      "env": {
-        "GHL_API_KEY": "pit-xxxxxxxx",
-        "GHL_LOCATION_ID": "your-location-id"
-      }
-    }
-  }
-}
-```
-On Windows, use a path like `C:\\Users\\you\\GHLCLaudeConnectPlugin\\dist\\local\\index.js`. Restart Claude Desktop afterwards; "gohighlevel" then appears in the tools/connectors menu.
+1. **Deploy** this repo to Railway (about 10 minutes, step by step): **[docs/deploy-railway.md](docs/deploy-railway.md)**
+2. **Optional:** create a private GHL Marketplace app. This adds the **"Log in with GoHighLevel"** button and **instant** automation triggers: **[docs/ghl-marketplace-app.md](docs/ghl-marketplace-app.md)**. Without the app, you log in with a Private Integration token and automations check for changes every 5 minutes.
+3. In Claude: **Settings → Connectors → Add custom connector**. Paste `https://<your-app>.up.railway.app/mcp`, then click **Connect**.
+4. A login page opens. Enter your team passcode, then either click **Log in with GoHighLevel** and pick your sub-account, or paste a token and Location ID.
+5. Done. GoHighLevel now appears in Claude's tools menu in every chat.
 
-### Claude Code
-```bash
-claude mcp add gohighlevel --scope user -e GHL_API_KEY=pit-xxxxxxxx -e GHL_LOCATION_ID=your-location-id -- node /ABSOLUTE/PATH/TO/GHLCLaudeConnectPlugin/dist/local/index.js
-```
-Then run `/mcp` inside Claude Code to check that it's connected.
+The hosted connector is private to you and your team:
+- People need the **team passcode** to connect.
+- Only the GHL locations in **`ALLOWED_LOCATION_IDS`** can be connected.
+- GHL tokens are encrypted (AES-256-GCM) and never sent to Claude.
+- The **`/admin`** page shows connections and automations, and has a disconnect button and a kill switch.
 
-### Optional settings (env vars)
-| Variable | Default | Purpose |
+---
+
+## What Claude can do
+
+**Contacts and data:** search and filter; create, update, upsert and delete; tags, notes and tasks; enroll contacts in workflows.
+**Lead sorting:** score and bucket leads (hot/warm/cold) with your own rules, assign them round-robin, find duplicates.
+**Texts and emails:** single or bulk, with merge fields like `{{contact.first_name|there}}`. Contacts with Do Not Disturb (DND) on are always skipped.
+**Pipelines:** list stages, search deals, create and update deals, move them between stages in bulk, mark them won or lost.
+**Imports:** CSV import with automatic column mapping, validation, dedupe, upsert, tagging and deal creation. Exports too.
+**Sales reports:**
+- pipeline value and win rate, per-owner breakdown, stale deals
+- calls (answered, missed, voicemail; talk time per rep), with transcripts and recordings
+- activity summary and revenue
+**Anything else:** `ghl_api_request` reaches any GHL API v2 endpoint.
+
+### Automations (hosted connector)
+
+GoHighLevel's API can't create or edit workflows in GHL's own builder. Instead, Claude builds automations that **run on your connector server** and act on GHL through the API. They can also enroll contacts in your existing GHL workflows.
+
+Ask Claude something like:
+
+> "When a contact gets the tag `new-lead`: text them *Hi {{contact.first_name|there}}, thanks for reaching out!*, create a deal in New Lead worth $500, wait 1 day, and if they haven't replied, text a follow-up. Only during business hours."
+
+> "Every weekday at 8:30am, create a task for the owner of every deal stuck in Proposal for more than 14 days."
+
+> "When someone replies STOP or UNSUBSCRIBE, tag them `opted-out` and remove them from workflow X."
+
+| Triggers | Actions |
+|---|---|
+| contact created · tag added/removed · deal created · deal stage changed · deal won/lost · inbound message (channel, keywords) · appointment booked/status changed · task completed · **schedule** (cron) · manual | send SMS · send email · add/remove tags · assign user (round-robin) · create deal · move deal stage · set deal status · create task · add note · add to/remove from GHL workflow · webhook · **wait** · **stop if** (replied / tag / deal status) |
+
+Conditions can be a contact filter, a minimum lead score, deal filters, or business hours.
+
+**Safety:**
+- New automations start in **dry-run** mode: they log what they *would* do.
+- `test_automation` shows exactly what would happen for a real contact, with merge fields filled in.
+- Going live needs your approval.
+- Each automation is limited to a maximum number of actions per hour, runs at most once per contact by default, and can never re-trigger itself.
+- `pause_all_automations` (or the button on `/admin`) stops everything instantly.
+
+---
+
+## Scopes
+In the Private Integration (or Marketplace app), select:
+`contacts.readonly` `contacts.write` `conversations.readonly` `conversations.write` `conversations/message.readonly` `conversations/message.write` `opportunities.readonly` `opportunities.write` `users.readonly` `locations.readonly` `locations/customFields.readonly` `locations/tags.readonly` `locations/tags.write` `workflows.readonly` `calendars.readonly` `calendars/events.readonly` `payments/transactions.readonly`
+
+## Settings
+
+**Desktop extension:** you set these in the install form.
+
+**Hosted connector:** set these as environment variables (see [`.env.example`](.env.example)).
+
+| Variable | Required | Purpose |
 |---|---|---|
-| `GHL_READ_ONLY` | `false` | `true` hides every write/send tool |
-| `GHL_BULK_CONFIRM_THRESHOLD` | `1` | Operations affecting at least this many records need confirmation. `1` means always; `10` lets single sends and small edits run without the preview step |
-| `GHL_DEFAULT_COUNTRY_CODE` | `1` | Country code added to phone numbers that have no `+` (imports, dedupe) |
+| `ENCRYPTION_KEY` | ✅ | Encrypts stored GHL tokens. Generate with `openssl rand -base64 32` |
+| `DATABASE_URL` | ✅ (prod) | Postgres connection string (Railway provides it) |
+| `CONNECT_PASSCODE` | ✅* | Team passcode on the login page |
+| `ALLOWED_LOCATION_IDS` | ✅* | Comma-separated GHL Location IDs allowed to connect |
+| `ADMIN_PASSWORD` | recommended | Turns on `/admin` (HTTP basic auth, any username) |
+| `PUBLIC_URL` | auto on Railway | Public base URL of the server |
+| `GHL_CLIENT_ID` / `GHL_CLIENT_SECRET` | optional | Turns on **Log in with GoHighLevel** |
+| `WEBHOOK_SECRET` | optional | Turns on instant triggers at `/webhooks/ghl/<secret>` |
+| `GHL_WEBHOOK_PUBLIC_KEY` | optional | Also checks GHL webhook signatures |
+| `GHL_READ_ONLY` | optional | `true` hides every tool that writes or sends |
+| `GHL_BULK_CONFIRM_THRESHOLD` | optional | Default `1`, so every write asks for approval first |
 
-## 4. Things to ask Claude
-- "Show me all leads tagged `facebook` from the last 7 days that nobody is assigned to."
-- "Score my leads: +40 if they have tag `demo-requested`, +20 if created this week, −20 if older than 60 days. Then tag the hot ones `hot-lead`."
-- "Round-robin the unassigned leads from this week between Sarah and Mike, including their open deals."
-- "Text every contact tagged `webinar-nov` this message: Hi {{contact.first_name|there}}, the replay is live: …"
-- "Import /Users/me/Downloads/expo-leads.csv, tag them `expo-2026`, and create a deal in the New Lead stage for each."
-- "Give me a pipeline report for this month: value by stage, win rate, and deals stuck more than 14 days."
-- "How many calls did each rep make last week, and what were the answer rates?"
-- "Move every deal in Proposal Sent that's owned by Mike to Negotiation."
-- "What revenue did we collect in October?"
-
-### Merge fields (for `send_sms`, `send_email`, `bulk_send`)
-`{{contact.first_name}}`, `{{contact.last_name}}`, `{{contact.name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{contact.company_name}}`, `{{contact.city}}`, `{{contact.<custom_field_key>}}`. Add a fallback with `|`, for example `{{contact.first_name|there}}`.
+\* You need at least one of these two. The server won't start as an open connector.
 
 ## Notes and limitations
-- **Call reporting:** GHL has no public call-report API, so `call_report` builds its numbers from the call logs in Conversations. Totals may differ slightly from the in-app Call Reporting dashboard. For long periods, increase `max_conversations`.
-- **Imports:** the API has no bulk-import endpoint, so contacts are upserted one at a time behind a rate limiter (about 8 requests per second; GHL allows 100 per 10 seconds). 1,000 contacts take roughly 3–5 minutes. Rows that fail go to `<file>.failures.csv`.
-- **Workflows and automations:** adding tags, moving stages and enrolling contacts in workflows can trigger your GHL automations, which is why those actions go through the preview step.
-- **DND / compliance:** contacts with DND, or with DND turned on for the channel, are always skipped. Make sure your bulk texting complies with A2P 10DLC and TCPA rules.
-- Search filters use GHL's advanced contact search. For custom-field filters, use `raw_filters`, for example `{"field":"customFields.<fieldId>","operator":"eq","value":"x"}`.
+- **Call reporting** comes from Conversations call logs, because GHL has no public call-report API. Totals can differ slightly from the in-app dashboard.
+- **Imports** upsert contacts one at a time behind a rate limiter, about 3–5 minutes per 1,000 rows. On the hosted connector, Claude passes the CSV text itself, since the server can't read files on your computer.
+- **Polling mode** (no Marketplace webhooks) detects new contacts, tag changes, deal changes and inbound messages every 5 minutes. Appointment and task triggers need webhooks.
+- Texting must follow A2P 10DLC and TCPA rules. Contacts with DND on are always skipped.
 
 ## Development
 ```bash
-npm test           # unit + integration tests against a fake GHL API
-npm run inspect    # open the MCP Inspector to try tools by hand (needs env vars set)
+npm ci
+npm test                  # 41 tests: tools, OAuth flow, automations (in-process Postgres + fake GHL)
+npm run build             # TypeScript → dist/
+npm run build:extension   # → release/GoHighLevel.mcpb
+npm run dev:remote        # hosted connector on :3000 with embedded PGlite (set ENCRYPTION_KEY + CONNECT_PASSCODE)
 ```
-Layout: `src/client.ts` (HTTP client, rate limit, retries), `src/confirm.ts` (preview/confirm engine), `src/ghl.ts` (pagination and data helpers), `src/tools/*` (tool groups), `src/server.ts` (registration).
+Layout:
+- `src/core/`: GHL client and every CRM tool, shared by both install options
+- `src/local/`: the desktop/stdio entry point
+- `src/remote/`: HTTP server, OAuth, login page, admin, database
+- `src/automations/`: the automation engine and its tools
+- `extension/`: manifest template and icon

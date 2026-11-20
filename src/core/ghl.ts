@@ -133,6 +133,7 @@ export class GhlData {
     if (f.exclude_tags?.some(has)) return false;
     if (f.assigned_to && c.assignedTo !== undefined && c.assignedTo !== f.assigned_to) return false;
     if (f.unassigned && c.assignedTo) return false;
+    if (f.source && c.source !== undefined && String(c.source).toLowerCase() !== f.source.toLowerCase()) return false;
     if (f.has_email && !c.email) return false;
     if (f.has_phone && !c.phone) return false;
     const added = toMs(c.dateAdded);

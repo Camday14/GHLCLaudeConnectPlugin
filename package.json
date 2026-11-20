@@ -1,7 +1,7 @@
 {
   "name": "ghl-claude-connector",
   "version": "1.1.0",
-  "description": "MCP server connecting Claude to GoHighLevel (LeadConnector API v2)",
+  "description": "Connect Claude to GoHighLevel: one-click Desktop Extension, hosted connector with GHL login, and automations",
   "type": "module",
   "main": "dist/local/index.js",
   "bin": {
@@ -13,6 +13,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/local/index.js",
+    "start:remote": "node dist/remote/index.js",
+    "dev:remote": "npm run build && node dist/remote/index.js",
     "test": "vitest run",
     "build:extension": "node scripts/build-extension.mjs",
     "inspect": "npx @modelcontextprotocol/inspector node dist/local/index.js"
@@ -20,13 +22,19 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
+    "croner": "^10.0.1",
     "csv-parse": "^6.1.0",
     "csv-stringify": "^6.6.0",
-    "zod": "^3.25.76"
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
+    "zod": "^3.25.76",
+    "@electric-sql/pglite": "^0.5.17"
   },
   "devDependencies": {
     "@anthropic-ai/mcpb": "^2.1.2",
+    "@types/express": "^5.0.6",
     "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
     "esbuild": "^0.28.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

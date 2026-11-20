@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+release
+data
+.git
+.github
+test
+extension
+scripts
+*.md
+.env

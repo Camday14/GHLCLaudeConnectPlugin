@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GhlClient } from "./client.js";
-import { createCtx, registerTools, type Config, type Ctx } from "./context.js";
+import { createCtx, registerTools, type Config, type Ctx, type ToolDef } from "./context.js";
 import { contactTools } from "./tools/contacts.js";
 import { importTools } from "./tools/imports.js";
 import { leadTools } from "./tools/leads.js";
@@ -16,9 +16,16 @@ const INSTRUCTIONS = `GoHighLevel CRM connector for one sub-account.
 - Any tool that sends messages, changes many records, or deletes returns a PREVIEW + confirm_token first. Always show the preview to the user and get explicit approval before calling again with confirm_token. Never confirm on the user's behalf.
 - Reports (pipeline_report, call_report, activity_summary, revenue_summary) are read-only and safe to run.`;
 
+export const SERVER_VERSION = "1.1.0";
+
 export function buildServer(client: GhlClient, config: Partial<Config> = {}): { server: McpServer; ctx: Ctx; tools: string[] } {
-  const server = new McpServer({ name: "gohighlevel", version: "1.0.0" }, { instructions: INSTRUCTIONS });
   const ctx = createCtx(client, config);
-  const tools = registerTools(server, ctx, ALL_TOOLS);
-  return { server, ctx, tools };
+  return { ...buildServerForCtx(ctx), ctx };
+}
+
+/** Build an MCP server around an existing context, optionally with extra tools (hosted mode adds automation tools). */
+export function buildServerForCtx(ctx: Ctx, extraTools: ToolDef<any>[] = [], extraInstructions = ""): { server: McpServer; tools: string[] } {
+  const server = new McpServer({ name: "gohighlevel", version: SERVER_VERSION }, { instructions: INSTRUCTIONS + extraInstructions });
+  const tools = registerTools(server, ctx, [...ALL_TOOLS, ...extraTools]);
+  return { server, tools };
 }

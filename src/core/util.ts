@@ -64,9 +64,14 @@ export function normalizePhone(phone: unknown, defaultCountryCode = "1"): string
 }
 
 /** Render {{contact.first_name}}-style merge fields. Supports fallbacks: {{contact.first_name|there}}. */
-export function renderTemplate(template: string, contact: Record<string, any>, customFieldsByKey: Record<string, string> = {}): string {
+export function renderTemplate(
+  template: string,
+  contact: Record<string, any>,
+  customFieldsByKey: Record<string, string> = {},
+  extra: Record<string, unknown> = {},
+): string {
   return template.replace(/\{\{\s*([\w.]+)\s*(?:\|\s*([^}]*?)\s*)?\}\}/g, (_m, key: string, fallback?: string) => {
-    const value = mergeValue(key, contact, customFieldsByKey);
+    const value = key in extra ? extra[key] : mergeValue(key, contact, customFieldsByKey);
     return value !== undefined && value !== null && String(value).trim() !== "" ? String(value) : fallback ?? "";
   });
 }

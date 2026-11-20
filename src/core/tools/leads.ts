@@ -26,9 +26,9 @@ const ruleSchema = z.object({
   points: z.number().describe("Points added when the rule matches (can be negative)"),
 });
 
-type Rule = z.infer<typeof ruleSchema>;
+export type Rule = z.infer<typeof ruleSchema>;
 
-const DEFAULT_RULES: Rule[] = [
+export const DEFAULT_RULES: Rule[] = [
   { type: "has_phone", points: 10 },
   { type: "has_email", points: 10 },
   { type: "created_within_days", value: 7, points: 20 },
